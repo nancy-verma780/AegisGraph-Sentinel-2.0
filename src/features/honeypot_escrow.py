@@ -7,6 +7,8 @@ Shows "Success" to criminal but holds funds in isolated shadow escrow.
 Strategic Innovation: Don't alert criminals that detection exists
 - Traditional: Block transaction → Criminal knows detection → Adapts
 - AegisGraph: Fake success → Criminal withdraws → Police alerted → Arrest
+"""
+# Working on honeypot escrow for fraudster deception
 
 Key Benefits:
 - Physical arrests with card in hand

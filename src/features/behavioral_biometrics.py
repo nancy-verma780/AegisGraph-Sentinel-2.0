@@ -8,6 +8,8 @@ Analyzes keystroke dynamics to detect stress patterns indicating:
 
 Features extracted:
 - Hold time (key press duration)
+"""
+# Working on keystroke dynamics for stress detection
 - Flight time (time between key releases and next press)
 - Typing speed (WPM)
 - Error rate (backspace frequency)

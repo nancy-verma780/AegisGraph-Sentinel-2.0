@@ -1,6 +1,7 @@
 """
 Pydantic schemas for API request/response validation
 """
+# Schema validation for all fraud detection endpoints
 
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List, Dict

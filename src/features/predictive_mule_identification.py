@@ -7,6 +7,8 @@ Identifies mule accounts at creation using 12 behavioral and technical features.
 Key Innovation: Proactive detection vs reactive blocking
 Traditional: Wait for suspicious transaction → Flag account
 AegisGraph: Flag at account opening → Prevent first transaction
+"""
+# Working on predictive mule detection at account opening
 
 Accuracy: 86% precision in pilot study (726/847 flagged accounts attempted fraud)
 

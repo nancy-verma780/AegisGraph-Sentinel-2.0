@@ -8,6 +8,8 @@ Features Analyzed:
 - Fundamental frequency (F0): Pitch changes under stress
 - Jitter: Cycle-to-cycle pitch variation
 - Shimmer: Amplitude perturbation
+"""
+# Working on voice stress detection for fraud prevention
 - Speech rate: Unnatural pacing from coaching
 - Prosody entropy: Flattened intonation
 - Background audio: Call-center detection
