@@ -14,6 +14,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime, timedelta
+from datetime import timezone
 import time #ready to deploy
 
 # Page configuration
@@ -270,7 +271,7 @@ if page == "🧭 Command Center":
                         "amount": float(current_amount),
                         "currency": "INR",
                         "mode": current_mode,
-                        "timestamp": datetime.utcnow().isoformat() + "Z"
+                        "timestamp": datetime.now(timezone.utc).isoformat() + "Z"
                     }
 
                     try:
@@ -399,7 +400,7 @@ elif page == "💳 Transaction Scan":
                     "amount": float(amount),
                     "currency": currency,
                     "mode": mode,
-                    "timestamp": datetime.utcnow().isoformat() + "Z"
+                    "timestamp": datetime.now(timezone.utc).isoformat() + "Z"
                 }
                 
                 if device_id:
@@ -516,7 +517,7 @@ elif page == "📁 Batch Triage":
                         "amount": float(row.get('amount', 0)),
                         "currency": str(row.get('currency', 'INR')),
                         "mode": str(row.get('mode', 'UPI')),
-                        "timestamp": str(row.get('timestamp', datetime.utcnow().isoformat() + "Z"))
+                        "timestamp": str(row.get('timestamp', datetime.now(timezone.utc).isoformat() + "Z"))
                     }
                     
                     # Add optional fields if present in CSV
@@ -1226,7 +1227,7 @@ elif page == "🧪 Innovation Lab":
                     "amount": 1,
                     "currency": "INR",
                     "mode": "UPI",
-                    "timestamp": datetime.utcnow().isoformat() + "Z",
+                    "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
                     "biometrics": {"hold_times": hold_times, "flight_times": flight_times}
                 }
                 resp = requests.post(f"{API_URL}/api/v1/fraud/check", json=payload, timeout=10)
