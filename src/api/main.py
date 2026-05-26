@@ -1758,13 +1758,18 @@ async def seal_evidence(request: BlockchainSealRequest):
         raise HTTPException(status_code=503, detail="Blockchain system not available")
     
     try:
-        result = state.blockchain_manager.seal_evidence(
-            transaction_id=request.transaction_id,
-            source_account=request.source_account,
-            target_account=request.target_account,
-            amount=request.amount,
-            risk_result=request.risk_result,
-            explanation=request.explanation,
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(
+            None,
+            partial(
+                state.blockchain_manager.seal_evidence,
+                transaction_id=request.transaction_id,
+                source_account=request.source_account,
+                target_account=request.target_account,
+                amount=request.amount,
+                risk_result=request.risk_result,
+                explanation=request.explanation,
+            ),
         )
         
         return BlockchainEvidenceResponse(
@@ -1799,7 +1804,11 @@ async def verify_evidence(evidence_id: str, block_number: int):
         raise HTTPException(status_code=503, detail="Blockchain system not available")
     
     try:
-        result = state.blockchain_manager.verify_evidence(evidence_id, block_number)
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(
+            None,
+            partial(state.blockchain_manager.verify_evidence, evidence_id, block_number),
+        )
         
         return BlockchainVerificationResponse(
             evidence_id=evidence_id,
@@ -1846,11 +1855,16 @@ async def export_legal_evidence(request: LegalExportRequest):
         if provided_token_hash != expected_token_hash:
             raise HTTPException(status_code=403, detail="Unauthorized legal export request")
 
-        result = state.blockchain_manager.export_for_legal_proceedings(
-            evidence_id=request.evidence_id,
-            case_number=request.case_number,
-            requesting_authority=request.requesting_authority,
-            authorization_token=request.authorization_token,
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(
+            None,
+            partial(
+                state.blockchain_manager.export_for_legal_proceedings,
+                evidence_id=request.evidence_id,
+                case_number=request.case_number,
+                requesting_authority=request.requesting_authority,
+                authorization_token=request.authorization_token,
+            ),
         )
         if 'error' in result:
             raise HTTPException(status_code=404, detail=result['error'])
