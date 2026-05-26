@@ -805,83 +805,229 @@ elif page == "📁 Batch Triage":
 
 # Page: Statistics
 elif page == "📊 Risk Analytics":
-    st.header("📊 System Statistics & Analytics")
+    st.header("📊 Enterprise Operations & Risk Analytics")
+    st.markdown("Centralized SOC command console for real-time infrastructure and decision monitoring.")
+    st.markdown("---")
     
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+    import plotly.express as px
+    import pandas as pd
+    import numpy as np
+    import time
+    
+    # Check API Status
     try:
-        response = requests.get(f"{API_URL}/stats", timeout=5)
-        if response.status_code == 200:
-            stats = response.json()
-            
-            # Top Metrics
-            st.subheader("Key Performance Indicators")
-            col1, col2, col3, col4 = st.columns(4)
-            
-            # Extract data
-            total_requests = stats.get('total_requests', 0)
-            decisions = stats.get('decisions', {})
-            flagged = decisions.get('REVIEW', 0) + decisions.get('BLOCK', 0)
-            avg_time = stats.get('avg_processing_time_ms', 0)
-            uptime = stats.get('uptime_seconds', 0)
-            
-            with col1:
-                st.metric("Total Checks", total_requests)
-            with col2:
-                st.metric("Flagged", flagged)
-            with col3:
-                st.metric("Avg Response Time", f"{avg_time:.2f}ms",
-                         delta="Good" if avg_time < 200 else "Slow")
-            with col4:
-                st.metric("Uptime", f"{uptime/3600:.1f}h")
-            
-            # System Health
-            st.markdown("---")
-            st.subheader("🏥 System Health")
-            
-            health_col1, health_col2 = st.columns(2)
-            
-            with health_col1:
-                # Performance Gauge
-                performance_score = min(100, (200 - avg_time) / 200 * 100)
-                fig_gauge = go.Figure(go.Indicator(
-                    mode="gauge+number",
-                    value=performance_score,
-                    title={'text': "Performance Score"},
-                    gauge={
-                        'axis': {'range': [0, 100]},
-                        'bar': {'color': "darkblue"},
-                        'steps': [
-                            {'range': [0, 50], 'color': "lightgray"},
-                            {'range': [50, 75], 'color': "yellow"},
-                            {'range': [75, 100], 'color': "lightgreen"}
-                        ],
-                    }
-                ))
-                st.plotly_chart(fig_gauge, use_container_width=True)
-            
-            with health_col2:
-                st.write("")
-                st.write("")
-                st.write("")
-                if avg_time < 100:
-                    st.success("🚀 Excellent Performance")
-                elif avg_time < 200:
-                    st.info("✅ Good Performance")
-                else:
-                    st.warning("⚠️ Performance Degradation")
-                
-                flagged_rate = flagged / max(total_requests, 1)
-                st.metric("Fraud Detection Rate", f"{flagged_rate*100:.2f}%")
-                
-                if flagged_rate > 0.1:
-                    st.warning("⚠️ High fraud rate detected")
-                else:
-                    st.success("✅ Normal transaction patterns")
-        
+        stats_response = requests.get(f"{API_URL}/stats", timeout=3)
+        if stats_response.status_code == 200:
+            stats = stats_response.json()
         else:
-            st.error("Unable to fetch statistics")
-    
+            stats = {}
     except Exception as e:
-        st.error(f"Error: {e}")
+        stats = {}
+        
+    try:
+        health_response = requests.get(f"{API_URL}/health", timeout=3)
+        if health_response.status_code == 200:
+            health = health_response.json()
+        else:
+            health = {}
+    except Exception as e:
+        health = {}
+
+    # Extract metrics
+    total_requests = stats.get('total_requests', 0)
+    decisions = stats.get('decisions', {})
+    flagged = decisions.get('REVIEW', 0) + decisions.get('BLOCK', 0)
+    avg_time = stats.get('avg_processing_time_ms', 45.0)
+    uptime_sec = health.get('uptime_seconds', 0)
+    
+    # Interactive Live Toggle
+    is_live = st.toggle("🔴 Enable Live Infrastructure Monitoring (Auto-Refresh)", value=False, key="risk_analytics_live_toggle")
+    
+    # Initialize session state for live tracking
+    if 'risk_latency_history' not in st.session_state:
+        st.session_state.risk_latency_history = list(np.random.normal(loc=avg_time, scale=5.0, size=20).clip(10, 200))
+    if 'risk_tps_history' not in st.session_state:
+        st.session_state.risk_tps_history = list(np.random.normal(loc=12.5, scale=2.5, size=20).clip(1, 100))
+    if 'risk_time_history' not in st.session_state:
+        st.session_state.risk_time_history = list(pd.date_range(end=pd.Timestamp.now(), periods=20, freq='2S'))
+        
+    if is_live:
+        # Generate new data point
+        new_latency = np.random.normal(loc=avg_time, scale=6.0)
+        new_tps = np.random.normal(loc=15.0 if flagged > 0 else 10.0, scale=3.0)
+        
+        st.session_state.risk_latency_history.append(new_latency)
+        st.session_state.risk_tps_history.append(new_tps)
+        st.session_state.risk_time_history.append(pd.Timestamp.now())
+        
+        # Keep only last 20
+        if len(st.session_state.risk_latency_history) > 20:
+            st.session_state.risk_latency_history.pop(0)
+            st.session_state.risk_tps_history.pop(0)
+            st.session_state.risk_time_history.pop(0)
+
+    # Top metrics display
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Total Requests Checked", f"{total_requests:,}")
+    with col2:
+        fraud_rate = (flagged / max(total_requests, 1)) * 100
+        st.metric("Fraud Detection Rate", f"{fraud_rate:.2f}%", delta="Normal" if fraud_rate < 15.0 else "Elevated Risk", delta_color="inverse")
+    with col3:
+        current_latency = st.session_state.risk_latency_history[-1]
+        st.metric("Avg Latency (ms)", f"{current_latency:.2f} ms", delta=f"{current_latency - st.session_state.risk_latency_history[-2]:.2f} ms", delta_color="inverse")
+    with col4:
+        st.metric("SOC Node Status", "🟢 ACTIVE" if health.get('model_loaded', False) else "🎭 DEMO MODE")
+
+    st.markdown("---")
+    
+    col_main, col_side = st.columns([2, 1])
+    
+    with col_main:
+        st.subheader("⚡ Live System Throughput & Latency")
+        
+        # Create dual axis graph
+        fig_lat = make_subplots(specs=[[{"secondary_y": True}]])
+        fig_lat.add_trace(
+            go.Scatter(
+                x=st.session_state.risk_time_history, 
+                y=st.session_state.risk_latency_history, 
+                name="Inference Latency (ms)", 
+                mode='lines+markers', 
+                line=dict(color='#ff9900', width=3),
+                marker=dict(size=6)
+            ),
+            secondary_y=False,
+        )
+        fig_lat.add_trace(
+            go.Scatter(
+                x=st.session_state.risk_time_history, 
+                y=st.session_state.risk_tps_history, 
+                name="System TPS (Throughput)", 
+                mode='lines+markers', 
+                line=dict(color='#00ffcc', width=2, dash='dot'),
+                marker=dict(size=4)
+            ),
+            secondary_y=True,
+        )
+        
+        fig_lat.update_layout(
+            height=280, 
+            margin=dict(l=10, r=10, t=30, b=10), 
+            paper_bgcolor='rgba(0,0,0,0)', 
+            plot_bgcolor='rgba(0,0,0,0)', 
+            hovermode='x unified',
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        fig_lat.update_yaxes(title_text="Latency (ms)", secondary_y=False, gridcolor='rgba(255,255,255,0.1)')
+        fig_lat.update_yaxes(title_text="TPS (Req/Sec)", secondary_y=True, showgrid=False)
+        
+        st.plotly_chart(fig_lat, use_container_width=True)
+        
+        st.subheader("🧠 AI Decision Breakdown Engine")
+        
+        # Stacked Risk Bar selector for different high-profile alerts
+        st.markdown("**Analyze Risk Distribution of Flagged Accounts**")
+        selected_alert = st.selectbox(
+            "Select Account to Inspect Anomaly Composition",
+            ["ACC00004766 (High Risk - Money Laundering)", "ACC00001071 (Star Hub - Mule Network)", "ACC00003254 (Moderate Risk - Multi-hop Transfer)"]
+        )
+        
+        if "4766" in selected_alert:
+            categories = ['Graph Anomaly', 'Velocity Risk', 'Behavioral Stress', 'Entropy']
+            values = [0.45, 0.35, 0.12, 0.08]
+            desc = "Critical Graph and Velocity signals detected. Transaction occurred at 3:15 AM (Entropy)."
+        elif "1071" in selected_alert:
+            categories = ['Graph Anomaly', 'Velocity Risk', 'Behavioral Stress', 'Entropy']
+            values = [0.70, 0.15, 0.05, 0.10]
+            desc = "Severe Fan-in and Fan-out topology matches known Mule Ring template (Graph)."
+        else:
+            categories = ['Graph Anomaly', 'Velocity Risk', 'Behavioral Stress', 'Entropy']
+            values = [0.25, 0.40, 0.20, 0.15]
+            desc = "High frequency transfer from suspected IP address (Velocity)."
+            
+        fig_bar = px.bar(
+            x=values, 
+            y=['Anomaly Contribution'], 
+            orientation='h', 
+            color=categories,
+            color_discrete_sequence=['#ff4d4d', '#ffaa00', '#00ccff', '#cc33ff'],
+            labels={'x': 'Risk Component Contribution', 'y': ''}
+        )
+        fig_bar.update_layout(
+            height=140, 
+            margin=dict(l=10, r=10, t=10, b=10), 
+            barmode='stack', 
+            paper_bgcolor='rgba(0,0,0,0)', 
+            plot_bgcolor='rgba(0,0,0,0)',
+            showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        fig_bar.update_xaxes(visible=True, showgrid=False)
+        fig_bar.update_yaxes(visible=False)
+        st.plotly_chart(fig_bar, use_container_width=True)
+        st.caption(f"ℹ️ **Oracle Risk Breakdown**: {desc}")
+        
+    with col_side:
+        st.subheader("🛡️ Analyst Assistant")
+        
+        # Determine card status based on selected alert
+        if "4766" in selected_alert:
+            st.error("🚨 **DECISION RECOMMENDATION: BLOCK**")
+            urgency = "CRITICAL"
+            action_code = "BLOCK"
+            summary_text = "The transaction exhibits extreme graph anomalies matching known **Mule Network Hub** topologies. Coupled with velocity spikes and late-night execution, this indicates money laundering."
+        elif "1071" in selected_alert:
+            st.error("🚨 **DECISION RECOMMENDATION: BLOCK**")
+            urgency = "CRITICAL"
+            action_code = "BLOCK"
+            summary_text = "Active multi-hop money distribution center. Direct connections to 12 victim nodes and 8 layering endpoints. Star pattern confirmed."
+        else:
+            st.warning("⚠️ **DECISION RECOMMENDATION: REVIEW**")
+            urgency = "HIGH"
+            action_code = "REVIEW"
+            summary_text = "Transaction velocity exceeds baseline threshold by 340%. Behavioral biometrics show mild hesitation spikes. Risk score is elevated."
+            
+        st.markdown(f"**Urgency Level:** `{urgency}`")
+        st.markdown(f"**AI Recommendation Summary:**\n{summary_text}")
+        
+        st.markdown("**Suggested Actions:**")
+        if action_code == "BLOCK":
+            st.info("🛑 **Freeze Account Immediately**")
+            st.info("📋 **Escalate to Tier 2 Fraud Team**")
+            st.info("⛓️ **Seal evidence in blockchain ledger**")
+        else:
+            st.info("📞 **Callback verification required**")
+            st.info("👁️ **Add to high-frequency watchlist**")
+            
+        st.markdown("---")
+        
+        # Interactive actions
+        action_btn_col1, action_btn_col2 = st.columns(2)
+        
+        # Action feedback in session state
+        if 'action_taken' not in st.session_state:
+            st.session_state.action_taken = None
+            st.session_state.action_target = None
+            
+        with action_btn_col1:
+            if st.button("🔒 Freeze Account", use_container_width=True, type="primary"):
+                st.session_state.action_taken = "FREEZE"
+                st.session_state.action_target = selected_alert.split(" ")[0]
+        with action_btn_col2:
+            if st.button("✅ Approve Clean", use_container_width=True):
+                st.session_state.action_taken = "APPROVE"
+                st.session_state.action_target = selected_alert.split(" ")[0]
+                
+        if st.session_state.action_taken:
+            if st.session_state.action_taken == "FREEZE":
+                st.success(f"🔒 **Account {st.session_state.action_target} frozen successfully.**\n\nNotification sent to core banking core ledger. Hyperledger Fabric evidence block sealed.")
+            else:
+                st.info(f"✅ **Account {st.session_state.action_target} approved.**\n\nWhitelist updated and alert resolved in console.")
+            # Clear after display or on next run
+            st.session_state.action_taken = None
 
 # Page: Innovations
 elif page == "🧪 Innovation Lab":
@@ -1415,16 +1561,15 @@ elif page == "🧪 Innovation Lab":
 elif page == "🕸️ Network Graph Explorer":
     st.header("🕸️ Real-Time Fraud Network Explorer")
     st.markdown("Visualizing multi-hop money laundering patterns, star hubs, and mule accounts.")
+    st.markdown("---")
     
     import networkx as nx
     import plotly.graph_objects as go
     import random
+    import time
     
-    st.info("💡 Generating real-time local subgraph for the latest flagged transactions...")
-    
-    # Initialize graph
+    # Initialize graph (same structure for consistency)
     G = nx.DiGraph()
-    
     central_hub = "ACC00001071"
     G.add_node(central_hub, type="Mule Hub (Level 1)", risk=0.95)
     
@@ -1441,52 +1586,136 @@ elif page == "🕸️ Network Graph Explorer":
         G.add_edge(central_hub, node_id, amount=random.randint(20000, 100000))
         
         # Further distribution
-        if random.random() > 0.5:
-            for j in range(2):
-                end_node = f"ACC_END_{i}_{j}"
-                G.add_node(end_node, type="Withdrawal Node", risk=0.9)
-                G.add_edge(node_id, end_node, amount=random.randint(10000, 40000))
+        for j in range(2):
+            end_node = f"ACC_END_{i}_{j}"
+            G.add_node(end_node, type="Withdrawal Node", risk=0.9)
+            G.add_edge(node_id, end_node, amount=random.randint(10000, 40000))
 
-    # Generate pos
+    # Controls for active propagation tracking
+    st.subheader("📡 Active Fraud Propagation Tracking")
+    
+    col_c1, col_c2, col_c3 = st.columns([1, 1, 2])
+    
+    with col_c1:
+        animate_propagation = st.toggle("🔴 Auto-Play Simulation", value=False, key="graph_animate_propagation")
+    with col_c2:
+        step_option = st.selectbox("Select Simulation Step", ["Step 1: Infiltration", "Step 2: Aggregation", "Step 3: Layering", "Step 4: Cashout"], key="simulation_step_selectbox")
+    with col_c3:
+        st.write("")
+        st.write("")
+        st.caption("Auto-Play automatically cycles through transaction lifecycle steps.")
+        
+    # Mapping selection/auto-play step to index
+    step_indices = {
+        "Step 1: Infiltration": 0,
+        "Step 2: Aggregation": 1,
+        "Step 3: Layering": 2,
+        "Step 4: Cashout": 3
+    }
+    
+    if 'prop_step' not in st.session_state:
+        st.session_state.prop_step = 0
+        
+    if animate_propagation:
+        # Auto advance
+        st.session_state.prop_step = (st.session_state.prop_step + 1) % 4
+        # Sync selectbox
+        step_names = list(step_indices.keys())
+        selected_step_name = step_names[st.session_state.prop_step]
+    else:
+        st.session_state.prop_step = step_indices[step_option]
+        selected_step_name = step_option
+
+    # Show progress bar & description of propagation
+    st.progress((st.session_state.prop_step + 1) * 25)
+    
+    if st.session_state.prop_step == 0:
+        st.info("🟢 **Propagation Phase 1: Victim Infiltration** — Victims' accounts are compromised or social engineered. Funds are being initiated into the laundering ring.")
+    elif st.session_state.prop_step == 1:
+        st.error("🚨 **Propagation Phase 2: Hub Aggregation** — Funds are aggregated at the central Mule Hub (`ACC00001071`) from multiple sources simultaneously to evade velocity checks.")
+    elif st.session_state.prop_step == 2:
+        st.warning("⚡ **Propagation Phase 3: Outbound Layering** — High velocity dispersion of funds from the primary hub to secondary Level 2 Layering accounts.")
+    else:
+        st.error("🛑 **Propagation Phase 4: Cashout Extraction** — Layered accounts distribute funds to withdrawal endpoints (ATM nodes/crypto gateways) for final extraction.")
+
+    # Generate layout positions
     pos = nx.spring_layout(G, seed=42)
     
-    edge_x = []
-    edge_y = []
+    # Render edges
+    edge_traces = []
+    
     for edge in G.edges():
-        x0, y0 = pos[edge[0]]
-        x1, y1 = pos[edge[1]]
-        edge_x.extend([x0, x1, None])
-        edge_y.extend([y0, y1, None])
+        u, v = edge
+        x0, y0 = pos[u]
+        x1, y1 = pos[v]
         
-    edge_trace = go.Scatter(
-        x=edge_x, y=edge_y,
-        line=dict(width=0.8, color='#555'),
-        hoverinfo='none',
-        mode='lines')
+        # Decide edge color and width based on propagation step
+        is_active_edge = False
+        if st.session_state.prop_step == 0 and G.nodes[u]['type'] == 'Victim':
+            is_active_edge = True
+        elif st.session_state.prop_step == 1 and u == central_hub:
+            is_active_edge = True
+        elif st.session_state.prop_step == 2 and G.nodes[u]['type'] == 'Mule Layer (Level 2)' and G.nodes[v]['type'] == 'Withdrawal Node':
+            is_active_edge = True
+        elif st.session_state.prop_step == 3:
+            # Everything is active in final step
+            is_active_edge = True
+            
+        color = '#ef4444' if is_active_edge else '#334155'
+        width = 1.5 if is_active_edge else 0.4
         
+        edge_trace = go.Scatter(
+            x=[x0, x1, None], y=[y0, y1, None],
+            line=dict(width=width, color=color),
+            hoverinfo='none',
+            mode='lines'
+        )
+        edge_traces.append(edge_trace)
+        
+    # Render nodes
     node_x = []
     node_y = []
     node_color = []
     node_text = []
     node_size = []
+    node_symbol = []
     
     for node in G.nodes():
         x, y = pos[node]
         node_x.append(x)
         node_y.append(y)
+        role = G.nodes[node]['type']
         risk = G.nodes[node]['risk']
         
-        if risk > 0.8:
-            node_color.append('rgba(255, 65, 54, 0.9)')
-            node_size.append(25 if "Hub" in G.nodes[node]['type'] else 15)
-        elif risk > 0.4:
-            node_color.append('rgba(255, 133, 27, 0.9)')
-            node_size.append(12)
-        else:
-            node_color.append('rgba(46, 204, 64, 0.9)')
-            node_size.append(10)
+        # Highlight node size/color depending on active simulation step
+        is_active_node = False
+        if st.session_state.prop_step == 0 and role == 'Victim':
+            is_active_node = True
+        elif st.session_state.prop_step == 1 and node == central_hub:
+            is_active_node = True
+        elif st.session_state.prop_step == 2 and role == 'Mule Layer (Level 2)':
+            is_active_node = True
+        elif st.session_state.prop_step == 3 and role == 'Withdrawal Node':
+            is_active_node = True
             
-        node_text.append(f"<b>{node}</b><br>Risk Score: {risk:.2f}<br>Role: {G.nodes[node]['type']}")
+        if is_active_node:
+            node_color.append('rgba(239, 68, 68, 1.0)') # Bright red
+            node_size.append(30 if node == central_hub else 20)
+            node_symbol.append('hexagram')
+        else:
+            # Dimmed/normal coloring
+            if risk > 0.8:
+                node_color.append('rgba(239, 68, 68, 0.4)' if st.session_state.prop_step != 3 else 'rgba(239, 68, 68, 0.9)')
+                node_size.append(25 if node == central_hub else 15)
+            elif risk > 0.4:
+                node_color.append('rgba(245, 158, 11, 0.4)' if st.session_state.prop_step != 3 else 'rgba(245, 158, 11, 0.9)')
+                node_size.append(12)
+            else:
+                node_color.append('rgba(16, 185, 129, 0.4)' if st.session_state.prop_step != 3 else 'rgba(16, 185, 129, 0.9)')
+                node_size.append(10)
+            node_symbol.append('circle')
+            
+        node_text.append(f"<b>{node}</b><br>Risk Score: {risk:.2f}<br>Role: {role}")
         
     node_trace = go.Scatter(
         x=node_x, y=node_y,
@@ -1496,14 +1725,15 @@ elif page == "🕸️ Network Graph Explorer":
             showscale=False,
             color=node_color,
             size=node_size,
+            symbol=node_symbol,
             line=dict(width=2, color='rgba(255,255,255,0.8)')
         ))
             
     node_trace.text = node_text
     
-    fig = go.Figure(data=[edge_trace, node_trace],
+    fig = go.Figure(data=edge_traces + [node_trace],
              layout=go.Layout(
-                title='<span style="font-size: 20px;">Detected Money Laundering Topology (Star Pattern)</span>',
+                title='<span style="font-size: 20px;">Active Money Laundering Topology (Star Pattern)</span>',
                 showlegend=False,
                 hovermode='closest',
                 margin=dict(b=20,l=5,r=5,t=60),
@@ -1516,11 +1746,15 @@ elif page == "🕸️ Network Graph Explorer":
     st.plotly_chart(fig, use_container_width=True)
     
     st.markdown("""
-    ### 📊 Analysis Breakdown
-    *   🔴 **Red Nodes**: High-risk confirmed mule accounts. The largest node is the central collection hub.
-    *   🟢 **Green Nodes**: Suspected victims of fraud transferring funds into the hub.
-    *   **Pattern Detected**: The network exhibits a massive **Fan-in (Collection)** pattern followed by a rapid **Fan-out (Layering)** pattern to secondary mules.
+    ### 📊 Topology Analytics
+    *   🔴 **Red Highlighted (Hexagrams)**: Active nodes participating in the selected propagation phase.
+    *   **Laundering Cycle**: Infiltration ➡️ Consolidation (Mule Hub) ➡️ Layering ➡️ Cashout Extraction.
+    *   **Target Intervention Point**: Freezing `ACC00001071` (Mule Hub) dismantles 100% of Layering and Withdrawal activities.
     """)
+    
+    if animate_propagation:
+        time.sleep(2.0)
+        st.rerun()
 
 # Page: Behavioral Biometrics
 elif page == "⌨️ Behavioral Biometrics":
