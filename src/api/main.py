@@ -3,6 +3,7 @@ FastAPI Application for AegisGraph Sentinel 2.0
 
 Real-time fraud detection API service
 """
+from __future__ import annotations
 # Working on fraud detection API endpoints and streamlit integration
 # SECURITY NOTE:
 # We use pickle ONLY to load our own internally-generated synthetic graph
@@ -29,7 +30,7 @@ from functools import partial
 from datetime import datetime, timezone
 from datetime import timezone
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 import uvicorn
 import random
 import json
@@ -105,7 +106,7 @@ def _decision_to_api_value(decision: object) -> str:
     return _API_DECISION_MAP[_normalize_decision(decision)]
 
 
-def _require_honeypot_admin(x_honeypot_token: str | None) -> None:
+def _require_honeypot_admin(x_honeypot_token: Optional[str]) -> None:
     expected_hash = os.getenv("AEGIS_HONEYPOT_ADMIN_TOKEN_HASH")
     if not expected_hash:
         raise HTTPException(status_code=503, detail="Honeypot authorization is not configured")
@@ -830,7 +831,7 @@ async def _stop_runtime_background_tasks():
 
 def _run_scoring_pipeline(
     transaction: dict,
-    biometrics: dict | None,
+    biometrics: Optional[dict],
     source_account: str,
     target_account: str,
     lateral_detector,
@@ -1715,7 +1716,7 @@ def assess_mule_risk(request: AccountOpeningRequest):
     description="Innovation 2: View all active deceptive containment operations"
 )
 async def list_active_honeypots(
-    x_honeypot_token: str | None = Header(default=None, alias="X-Honeypot-Token"),
+    x_honeypot_token: Optional[str] = Header(default=None, alias="X-Honeypot-Token"),
 ):
     """
     Get list of all active honeypot traps
@@ -1767,7 +1768,7 @@ async def list_active_honeypots(
     description="Innovation 2: View performance metrics including arrest rate and recovery amount"
 )
 async def get_honeypot_stats(
-    x_honeypot_token: str | None = Header(default=None, alias="X-Honeypot-Token"),
+    x_honeypot_token: Optional[str] = Header(default=None, alias="X-Honeypot-Token"),
 ):
     """
     Get honeypot system performance statistics
