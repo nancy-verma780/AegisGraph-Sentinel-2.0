@@ -4,7 +4,11 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 from scipy import stats
-import requests
+
+try:
+    import requests
+except ImportError:
+    requests = None
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -46,6 +50,10 @@ class AdversarialDriftMonitor:
             self._alert_executor.submit(self._dispatch_webhook_alert, msg)
 
     def _dispatch_webhook_alert(self, msg):
+        if requests is None:
+            logging.warning("requests is unavailable; skipping webhook dispatch")
+            return
+
         try:
             requests.post(self.webhook_url, json={"text": msg}, timeout=2)
         except Exception as e:
