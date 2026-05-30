@@ -1,0 +1,19 @@
+name: Duplicate Issue Detector
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  check-duplicate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compare Issue Text
+        uses: actions-cool/issues-helper@v3
+        with:
+          actions: 'check-duplicate'
+          token: ${{ secrets.GITHUB_TOKEN }}
+          title-threshold: 0.85
+          body-threshold: 0.80
+          duplicate-label: 'duplicate'
+          duplicate-comment: 'Hello! This issue appears to be a duplicate of #${NUMBER}. Please check the original thread for updates. 🤖'
